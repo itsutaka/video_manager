@@ -1,0 +1,16 @@
+/**
+ * modals.css
+ * 模態框樣式
+ * 包含：刪除確認、影片預覽、下載進度等模態框
+ */
+
+/* 模態框基礎樣式 */
+.modal-overlay {
+    backdrop-filter: blur(4px);
+    animation: modal-fade-in 0.3s ease;
+}
+
+.modal-content {
+    animation: modal-slide-up 0.3s ease;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}

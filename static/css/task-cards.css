@@ -1,0 +1,239 @@
+/**
+ * task-cards.css
+ * 任務卡片完整樣式
+ * 包含：歷史容器、任務卡片、標題、操作按鈕、縮圖、工具提示等
+ */
+
+/* 歷史紀錄容器 */
+.history-container {
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border-radius: 1rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    position: relative;
+    overflow: hidden;
+}
+
+.history-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image:
+        radial-gradient(circle at 20% 80%, rgba(59, 130, 246, 0.05) 0%, transparent 50%),
+        radial-gradient(circle at 80% 20%, rgba(139, 92, 246, 0.05) 0%, transparent 50%);
+    pointer-events: none;
+}
+
+/* 任務卡片 */
+.task-card {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid #e5e7eb;
+    background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%);
+    border-radius: 0.75rem;
+    position: relative;
+    overflow: hidden;
+    animation: task-card-enter 0.5s ease-out;
+}
+
+.task-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+    transform: scaleX(0);
+    transition: transform 0.3s ease;
+}
+
+.task-card:hover {
+    border-color: #3b82f6;
+    box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.2), 0 8px 10px -6px rgba(59, 130, 246, 0.1);
+    transform: translateY(-2px);
+}
+
+.task-card:hover::before {
+    transform: scaleX(1);
+}
+
+.task-card-content {
+    padding: 1.5rem;
+    display: flex;
+    align-items: flex-start;
+}
+
+.task-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+    flex: 1;
+}
+
+.task-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #1f2937;
+    margin-bottom: 0.25rem;
+    line-height: 1.4;
+    cursor: help;
+}
+
+.task-uploader {
+    color: #6b7280;
+    font-size: 0.875rem;
+    margin-bottom: 0.5rem;
+}
+
+.task-badges {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.75rem;
+}
+
+.task-meta {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    padding: 1rem;
+    background: rgba(248, 250, 252, 0.8);
+    border-radius: 0.5rem;
+    border: 1px solid #e2e8f0;
+}
+
+.task-meta-item {
+    display: flex;
+    align-items: center;
+    font-size: 0.875rem;
+    color: #64748b;
+}
+
+.task-meta-item i {
+    margin-right: 0.5rem;
+    color: #3b82f6;
+    width: 16px;
+    text-align: center;
+}
+
+.task-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+/* 影片任務卡片 */
+.task-card.video-task {
+    border-left: 4px solid #dc2626;
+}
+
+.task-card.video-task:hover {
+    border-left-color: #b91c1c;
+}
+
+/* 縮圖樣式 */
+.task-thumbnail {
+    width: 120px;
+    height: 68px;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    margin-right: 1rem;
+    flex-shrink: 0;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.task-thumbnail:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.thumbnail-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: opacity 0.3s ease;
+}
+
+.thumbnail-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+    border: 2px dashed #d1d5db;
+}
+
+.thumbnail-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.task-thumbnail:hover .thumbnail-overlay {
+    opacity: 1;
+}
+
+.thumbnail-duration {
+    position: absolute;
+    bottom: 4px;
+    right: 4px;
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+/* 工具提示 */
+.task-tooltip {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.75rem;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    padding: 1rem;
+    margin-top: 0.5rem;
+    z-index: 20;
+    animation: tooltip-enter 0.3s ease-out;
+}
+
+.tooltip-content h4 {
+    color: #1f2937;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    line-height: 1.4;
+}
+
+.tooltip-content p {
+    color: #6b7280;
+    font-size: 0.875rem;
+    line-height: 1.4;
+    margin-bottom: 0.25rem;
+}
+
+.tooltip-content p:last-child {
+    margin-bottom: 0;
+}

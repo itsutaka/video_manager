@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>語音轉文字服務 - 模塊化重構版</title>
+
+    <!-- 外部樣式庫 -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
+
+    <!-- 模塊化 CSS -->
+    <link rel="stylesheet" href="/static/css/main.css">
+    <link rel="stylesheet" href="/static/css/components.css">
+    <link rel="stylesheet" href="/static/css/task-cards.css">
+    <link rel="stylesheet" href="/static/css/modals.css">
+    <link rel="stylesheet" href="/static/css/animations.css">
+    <link rel="stylesheet" href="/static/css/responsive.css">
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <header class="text-center mb-12">
+            <h1 class="text-4xl font-bold text-blue-600">語音轉文字服務</h1>
+            <p class="text-gray-600 mt-2">基於 Faster Whisper 的 GPU 加速語音轉錄系統</p>
+        </header>
+        
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+            <div class="mb-6">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-4">上傳音頻檔案</h2>
+                <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center" id="dropzone">
+                    <input type="file" id="fileInput" class="hidden" accept=".mp3,.wav,.m4a,.flac,.ogg">
+                    <label for="fileInput" class="cursor-pointer block">
+                        <i class="fas fa-cloud-upload-alt text-blue-500 text-5xl mb-4"></i>
+                        <p class="text-gray-700 mb-2">拖放文件到此處或點擊上傳</p>
+                        <p class="text-sm text-gray-500">支持的格式: MP3, WAV, M4A, FLAC, OGG</p>
+                    </label>
+                </div>
+                <div id="fileInfo" class="mt-4 hidden">
+                    <div class="flex items-center p-4 bg-blue-50 rounded-lg">
+                        <i class="fas fa-file-audio text-blue-500 text-xl mr-3"></i>
+                        <div class="flex-grow">
+                            <p class="font-medium" id="fileName">file.mp3</p>
+                            <p class="text-sm text-gray-600" id="fileSize">2.5 MB</p>
+                        </div>
+                        <button id="removeFile" class="text-gray-500 hover:text-red-500">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mb-6">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-4">或輸入 YouTube 連結</h2>
+                <div class="flex">
+                    <input type="text" id="youtubeUrl" placeholder="https://www.youtube.com/watch?v=..." 
+                           class="flex-grow px-4 py-3 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <button id="clearYoutubeUrl" class="bg-gray-200 px-4 rounded-r-lg text-gray-600 hover:bg-gray-300">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="mb-6">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-4">配置選項</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-gray-700 mb-1" for="language">語言 (可選)</label>
+                        <select id="language" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="">自動檢測</option>
+                            <option value="zh">中文</option>
+                            <option value="en">英文</option>
+                            <option value="ja">日文</option>
+                            <option value="ko">韓文</option>
+                            <option value="fr">法文</option>
+                            <option value="de">德文</option>
+                            <option value="es">西班牙文</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="flex items-center space-x-2 mb-1">
+                            <input type="checkbox" id="withDiarization" class="form-checkbox h-5 w-5 text-blue-600">
+                            <span class="text-gray-700">啟用說話者分離</span>
+                        </label>
+                        <p class="text-xs text-gray-500 ml-7">識別不同說話者並標記文本，處理時間較長</p>
+                    </div>
+                    
+                    <div class="col-span-1 md:col-span-2">
+                        <div class="p-4 bg-blue-50 rounded-lg">
+                            <div class="flex items-center mb-3">
+                                <label class="flex items-center space-x-2">
+                                    <input type="checkbox" id="vadEnabled" class="form-checkbox h-5 w-5 text-blue-600">
+                                    <span class="text-gray-700 font-medium">啟用 VAD 語音活動檢測(過濾靜音和背景噪音)<br>可能導致部分語音被錯誤過濾。對中文較不適用，有大量靜音的音頻才建議開啟。</span>
+                                </label>
+                                <div class="ml-2 relative inline-block">
+                                    <i class="fas fa-info-circle text-blue-500 cursor-pointer" id="vadInfoIcon"></i>
+                                    <div id="vadTooltip" class="hidden absolute left-0 bottom-full mb-2 w-64 p-2 bg-gray-800 text-white text-xs rounded shadow-lg z-20">
+                                        <strong>中文語音的 VAD 檢測問題</strong><br>
+                                        中文語音有些特殊性質會導致 VAD 檢測困難：<br>
+                                        1. 聲調變化較多：中文是聲調語言，語句中的聲音起伏較大<br>
+                                        2. 自然停頓頻繁：中文講話通常有較多短停頓，這些停頓可能被誤認為是靜音<br>
+                                        3. 音量變化：中文發音時部分音節音量可能較小，尤其是句尾<br><br>
+                                        <strong>如修改後仍然過濾太多音訊，對於某些中文音訊，可能需要關閉 VAD</strong>
+                                    </div>
+                                </div> 
+                            </div>
+                            
+                            <div id="vadSettings" class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2 hidden">
+                                <div>
+                                    <label class="block text-sm text-gray-700 mb-1" for="minSilenceDuration">最小靜音持續時間 (毫秒)</label>
+                                    <input type="number" id="minSilenceDuration" min="100" max="60000" step="100" value="500" 
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <p class="text-xs text-gray-500 mt-1">較大的值只會過濾較長的靜音 (中文建議 > 5000)</p>
+                                </div>
+                                <div>
+                                    <label class="block text-sm text-gray-700 mb-1" for="speechPad">語音填充時間 (毫秒)</label>
+                                    <input type="number" id="speechPad" min="100" max="2000" step="100" value="400"
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <p class="text-xs text-gray-500 mt-1">在語音前後添加的緩衝時間 (避免語音被截斷)</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-span-1 md:col-span-2">
+                        <div class="p-4 bg-purple-50 rounded-lg">
+                            <h3 class="font-medium text-gray-800 mb-3">YouTube 下載選項</h3>
+                            
+                            <label class="flex items-center space-x-2 mb-2">
+                                <input type="checkbox" id="downloadVideo" class="form-checkbox h-5 w-5 text-purple-600" checked>
+                                <span class="text-gray-700 font-medium">下載完整影片檔案</span>
+                            </label>
+                            <p class="text-xs text-gray-500 ml-7 mb-3">下載 YouTube 影片的完整影片檔案（最高 1080p），檔案較大，下載時間較長</p>
+                            
+                            <label class="flex items-center space-x-2">
+                                <input type="checkbox" id="downloadThumbnail" class="form-checkbox h-5 w-5 text-purple-600" checked>
+                                <span class="text-gray-700 font-medium">下載影片縮圖</span>
+                            </label>
+                            <p class="text-xs text-gray-500 ml-7">下載 YouTube 影片的縮圖圖片，用於歷史紀錄顯示</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex flex-col md:flex-row space-y-3 md:space-y-0 md:space-x-3">
+                <button id="transcribeBtn" class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 disabled:opacity-50">
+                    <i class="fas fa-play mr-2"></i>開始轉錄
+                </button>
+                <button id="downloadBtn" class="hidden bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50">
+                    <i class="fas fa-download mr-2"></i>下載 SRT 字幕
+                </button>
+            </div>
+        </div>
+        
+        <div id="transcriptionContainer" class="bg-white rounded-lg shadow-lg p-6 mb-8 hidden">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-2xl font-semibold text-gray-800">轉錄結果</h2>
+                <div class="flex space-x-3">
+                    <button id="copyBtn" class="text-blue-600 hover:text-blue-800 focus:outline-none">
+                        <i class="fas fa-copy mr-1"></i>複製
+                    </button>
+                    <div class="relative inline-block text-left">
+                        <button id="exportBtn" class="text-blue-600 hover:text-blue-800 focus:outline-none">
+                            <i class="fas fa-file-export mr-1"></i>匯出
+                            <i class="fas fa-chevron-down text-xs ml-1"></i>
+                        </button>
+                        <div id="exportDropdown" class="hidden absolute right-0 mt-2 w-40 bg-white rounded-md shadow-lg z-10">
+                            <div class="py-1">
+                                <a id="exportTxtBtn" href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900">
+                                    <i class="fas fa-file-alt mr-2"></i>匯出 TXT
+                                </a>
+                                <a id="exportSrtBtn" href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900">
+                                    <i class="fas fa-file-video mr-2"></i>匯出 SRT
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="loadingIndicator" class="hidden">
+                <div class="mb-4">
+                    <div class="flex justify-between mb-1">
+                        <span class="text-gray-700">轉錄進度</span>
+                        <span id="progressPercent" class="text-blue-600">0%</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2.5">
+                        <div id="progressBar" class="bg-blue-600 h-2.5 rounded-full progress-bar" style="width: 0%"></div>
+                    </div>
+                </div>
+                <p class="text-gray-600 loading"><i class="fas fa-spinner fa-spin mr-2"></i>正在處理中...</p>
+            </div>
+            
+            <div id="transcriptText" class="transcript-container mt-4 font-medium text-gray-800"></div>
+            
+            <div id="segmentsContainer" class="transcript-container mt-8">
+                <h3 class="text-lg font-semibold text-gray-800 mb-3">分段轉錄</h3>
+                <div id="segmentsList" class="space-y-3"></div>
+            </div>
+        </div>
+        
+        <!-- 歷史紀錄面板 -->
+        <div id="historyContainer" class="history-container p-6 mb-8">
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 mb-1">轉換歷史紀錄</h2>
+                    <p class="text-gray-600 text-sm">管理您的語音轉文字轉換任務</p>
+                </div>
+                <button id="refreshHistoryBtn" class="task-action-btn download" title="重新整理">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+            </div>
+            
+            <!-- 搜尋和篩選控制項 -->
+            <div class="search-filters">
+                <div class="flex flex-col md:flex-row md:space-x-4 space-y-4 md:space-y-0 mb-4">
+                    <!-- 搜尋框 -->
+                    <div class="flex-grow">
+                        <label class="block text-gray-700 mb-2 font-medium" for="historySearch">搜尋任務</label>
+                        <div class="search-input-wrapper">
+                            <input type="text" id="historySearch" placeholder="搜尋任務名稱或檔案名稱..." 
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <i class="fas fa-search"></i>
+                        </div>
+                    </div>
+                    
+                    <!-- 檔案類型篩選 -->
+                    <div class="w-full md:w-48">
+                        <label class="block text-gray-700 mb-2 font-medium" for="fileTypeFilter">檔案類型</label>
+                        <select id="fileTypeFilter" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="">全部類型</option>
+                            <option value="file">上傳檔案</option>
+                            <option value="youtube">YouTube</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- 日期範圍篩選 -->
+                <div class="flex flex-col md:flex-row md:space-x-4 space-y-4 md:space-y-0">
+                    <div class="w-full md:w-48">
+                        <label class="block text-gray-700 mb-2 font-medium" for="dateFrom">開始日期</label>
+                        <input type="date" id="dateFrom" 
+                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div class="w-full md:w-48">
+                        <label class="block text-gray-700 mb-2 font-medium" for="dateTo">結束日期</label>
+                        <input type="date" id="dateTo" 
+                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div class="flex items-end">
+                        <button id="clearFiltersBtn" class="px-4 py-3 text-gray-600 hover:text-gray-800 focus:outline-none font-medium">
+                            <i class="fas fa-times mr-2"></i>清除篩選
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 載入指示器 -->
+            <div id="historyLoadingIndicator" class="hidden text-center py-12">
+                <div class="loading-spinner mx-auto mb-4"></div>
+                <p class="text-gray-600 font-medium">載入歷史紀錄中...</p>
+                <div class="loading-dots mt-2 justify-center">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+            </div>
+            
+            <!-- 空狀態 -->
+            <div id="historyEmptyState" class="hidden empty-state">
+                <i class="fas fa-history"></i>
+                <h3>尚無轉換紀錄</h3>
+                <p>開始您的第一次語音轉文字轉換吧！</p>
+            </div>
+            
+            <!-- 任務列表容器 -->
+            <div id="historyList" class="space-y-6">
+                <!-- 任務卡片將在這裡動態生成 -->
+            </div>
+            
+            <!-- 分頁控制項 -->
+            <div id="historyPagination" class="hidden pagination-container">
+                <div class="pagination-info">
+                    顯示第 <span id="currentPageInfo">1-10</span> 項，共 <span id="totalItemsInfo">0</span> 項
+                </div>
+                <div class="pagination-controls">
+                    <button id="prevPageBtn" class="page-number">
+                        <i class="fas fa-chevron-left mr-1"></i>上一頁
+                    </button>
+                    <span id="pageNumbers" class="flex space-x-1">
+                        <!-- 頁碼按鈕將在這裡動態生成 -->
+                    </span>
+                    <button id="nextPageBtn" class="page-number">
+                        下一頁<i class="fas fa-chevron-right ml-1"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 系統維護面板 -->
+        <div id="maintenanceContainer" class="history-container p-6 mb-8">
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 mb-1">系統維護</h2>
+                    <p class="text-gray-600 text-sm">監控系統狀態並執行維護操作</p>
+                </div>
+                <button id="refreshMaintenanceBtn" class="task-action-btn download" title="重新整理">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+            </div>
+            
+            <!-- 系統狀態概覽 -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <!-- 磁碟空間狀態 -->
+                <div class="bg-white rounded-lg border border-gray-200 p-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-lg font-semibold text-gray-800">磁碟空間</h3>
+                        <i class="fas fa-hdd text-blue-500 text-xl"></i>
+                    </div>
+                    <div id="diskSpaceInfo" class="space-y-2">
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-600">已使用</span>
+                            <span id="diskUsedPercent" class="font-medium">--</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div id="diskUsageBar" class="bg-blue-500 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                        </div>
+                        <div class="flex justify-between text-xs text-gray-500">
+                            <span id="diskUsedSpace">-- GB</span>
+                            <span id="diskTotalSpace">-- GB</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 任務統計 -->
+                <div class="bg-white rounded-lg border border-gray-200 p-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-lg font-semibold text-gray-800">任務統計</h3>
+                        <i class="fas fa-chart-bar text-green-500 text-xl"></i>
+                    </div>
+                    <div id="taskStatsInfo" class="space-y-2">
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-600">總任務數</span>
+                            <span id="totalTasks" class="font-medium">--</span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-600">已完成</span>
+                            <span id="completedTasks" class="font-medium text-green-600">--</span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-600">失敗</span>
+                            <span id="failedTasks" class="font-medium text-red-600">--</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 維護狀態 -->
+                <div class="bg-white rounded-lg border border-gray-200 p-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-lg font-semibold text-gray-800">維護狀態</h3>
+                        <i class="fas fa-cogs text-purple-500 text-xl"></i>
+                    </div>
+                    <div id="maintenanceStatusInfo" class="space-y-2">
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-600">排程器</span>
+                            <span id="schedulerStatus" class="font-medium">--</span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-600">上次清理</span>
+                            <span id="lastCleanup" class="font-medium text-xs">--</span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-600">歷史大小</span>
+                            <span id="historySize" class="font-medium">-- MB</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 維護操作按鈕 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <button id="forceCleanupBtn" class="maintenance-btn bg-orange-500 hover:bg-orange-600 text-white px-4 py-3 rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-opacity-50">
+                    <i class="fas fa-broom mr-2"></i>
+                    強制清理
+                </button>
+                <button id="optimizeDatabaseBtn" class="maintenance-btn bg-blue-500 hover:bg-blue-600 text-white px-4 py-3 rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
+                    <i class="fas fa-database mr-2"></i>
+                    最佳化資料庫
+                </button>
+                <button id="startSchedulerBtn" class="maintenance-btn bg-green-500 hover:bg-green-600 text-white px-4 py-3 rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50">
+                    <i class="fas fa-play mr-2"></i>
+                    啟動排程器
+                </button>
+                <button id="stopSchedulerBtn" class="maintenance-btn bg-red-500 hover:bg-red-600 text-white px-4 py-3 rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50">
+                    <i class="fas fa-stop mr-2"></i>
+                    停止排程器
+                </button>
+            </div>
+            
+            <!-- 清理設定 -->
+            <div class="bg-white rounded-lg border border-gray-200 p-4 mb-6">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">清理設定</h3>
+                <div class="flex items-center space-x-4">
+                    <label class="text-gray-700 font-medium">保留天數：</label>
+                    <input type="number" id="retentionDays" min="1" max="365" value="30" 
+                           class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-20">
+                    <span class="text-gray-600 text-sm">天</span>
+                    <button id="applyRetentionBtn" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        套用
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 維護報告 -->
+            <div class="bg-white rounded-lg border border-gray-200 p-4">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-800">維護報告</h3>
+                    <button id="refreshReportsBtn" class="text-blue-500 hover:text-blue-600 focus:outline-none">
+                        <i class="fas fa-sync-alt mr-1"></i>重新整理
+                    </button>
+                </div>
+                
+                <!-- 載入指示器 -->
+                <div id="reportsLoadingIndicator" class="hidden text-center py-8">
+                    <div class="loading-spinner mx-auto mb-2"></div>
+                    <p class="text-gray-600">載入報告中...</p>
+                </div>
+                
+                <!-- 空狀態 -->
+                <div id="reportsEmptyState" class="hidden text-center py-8 text-gray-500">
+                    <i class="fas fa-file-alt text-4xl mb-2"></i>
+                    <p>尚無維護報告</p>
+                </div>
+                
+                <!-- 報告列表 -->
+                <div id="reportsList" class="space-y-3 max-h-64 overflow-y-auto">
+                    <!-- 報告項目將在這裡動態生成 -->
+                </div>
+            </div>
+        </div>
+        
+        <!-- 影片預覽對話框 -->
+        <div id="videoPreviewModal" class="hidden fixed inset-0 bg-black bg-opacity-75 modal-overlay flex items-center justify-center z-50">
+            <div class="modal-content bg-white rounded-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden">
+                <!-- 模態框標題列 -->
+                <div class="flex items-center justify-between p-4 border-b border-gray-200">
+                    <h3 class="text-lg font-bold text-gray-900" id="videoPreviewTitle">影片預覽</h3>
+                    <button id="closeVideoPreviewBtn" class="text-gray-500 hover:text-gray-700 focus:outline-none">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                
+                <!-- 影片預覽內容 -->
+                <div class="p-6">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <!-- 縮圖和基本資訊 -->
+                        <div class="lg:col-span-1">
+                            <div class="aspect-video bg-gray-100 rounded-lg overflow-hidden mb-4">
+                                <img id="videoPreviewThumbnail" src="" alt="影片縮圖" class="w-full h-full object-cover">
+                            </div>
+                            
+                            <!-- 下載按鈕 -->
+                            <div class="space-y-2">
+                                <button id="previewDownloadVideo" class="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 transition-colors">
+                                    <i class="fas fa-video mr-2"></i>下載影片檔案
+                                </button>
+                                <button id="previewDownloadAudio" class="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-colors">
+                                    <i class="fas fa-file-audio mr-2"></i>下載音訊檔案
+                                </button>
+                                <button id="previewDownloadThumbnail" class="w-full px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-colors">
+                                    <i class="fas fa-image mr-2"></i>下載縮圖檔案
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- 詳細資訊 -->
+                        <div class="lg:col-span-2">
+                            <div class="space-y-4">
+                                <!-- 影片標題 -->
+                                <div>
+                                    <h4 class="text-lg font-semibold text-gray-800 mb-2" id="videoPreviewFullTitle">影片標題</h4>
+                                </div>
+                                
+                                <!-- 影片資訊 -->
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div class="space-y-3">
+                                        <div class="flex items-center text-sm text-gray-600">
+                                            <i class="fas fa-user mr-3 text-blue-500 w-4"></i>
+                                            <span class="font-medium">上傳者:</span>
+                                            <span id="videoPreviewUploader" class="ml-2">-</span>
+                                        </div>
+                                        <div class="flex items-center text-sm text-gray-600">
+                                            <i class="fas fa-calendar mr-3 text-green-500 w-4"></i>
+                                            <span class="font-medium">上傳日期:</span>
+                                            <span id="videoPreviewUploadDate" class="ml-2">-</span>
+                                        </div>
+                                        <div class="flex items-center text-sm text-gray-600">
+                                            <i class="fas fa-clock mr-3 text-orange-500 w-4"></i>
+                                            <span class="font-medium">影片時長:</span>
+                                            <span id="videoPreviewDuration" class="ml-2">-</span>
+                                        </div>
+                                    </div>
+                                    <div class="space-y-3">
+                                        <div class="flex items-center text-sm text-gray-600">
+                                            <i class="fas fa-eye mr-3 text-purple-500 w-4"></i>
+                                            <span class="font-medium">觀看次數:</span>
+                                            <span id="videoPreviewViewCount" class="ml-2">-</span>
+                                        </div>
+                                        <div class="flex items-center text-sm text-gray-600">
+                                            <i class="fas fa-calendar-plus mr-3 text-indigo-500 w-4"></i>
+                                            <span class="font-medium">轉換時間:</span>
+                                            <span id="videoPreviewCreatedAt" class="ml-2">-</span>
+                                        </div>
+                                        <div class="flex items-center text-sm text-gray-600">
+                                            <i class="fas fa-check-circle mr-3 text-green-500 w-4"></i>
+                                            <span class="font-medium">轉換狀態:</span>
+                                            <span id="videoPreviewStatus" class="ml-2">-</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- 影片描述 -->
+                                <div>
+                                    <h5 class="font-medium text-gray-800 mb-2">影片描述</h5>
+                                    <div class="bg-gray-50 rounded-lg p-3 max-h-32 overflow-y-auto">
+                                        <p id="videoPreviewDescription" class="text-sm text-gray-600 leading-relaxed">無描述資訊</p>
+                                    </div>
+                                </div>
+                                
+                                <!-- 轉換資訊 -->
+                                <div>
+                                    <h5 class="font-medium text-gray-800 mb-2">轉換資訊</h5>
+                                    <div class="bg-blue-50 rounded-lg p-3">
+                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                                            <div class="flex justify-between">
+                                                <span class="text-gray-600">檔案大小:</span>
+                                                <span id="videoPreviewFileSize" class="font-medium">-</span>
+                                            </div>
+                                            <div class="flex justify-between">
+                                                <span class="text-gray-600">使用模型:</span>
+                                                <span id="videoPreviewModel" class="font-medium">-</span>
+                                            </div>
+                                            <div class="flex justify-between">
+                                                <span class="text-gray-600">語言:</span>
+                                                <span id="videoPreviewLanguage" class="font-medium">-</span>
+                                            </div>
+                                            <div class="flex justify-between">
+                                                <span class="text-gray-600">說話者分離:</span>
+                                                <span id="videoPreviewDiarization" class="font-medium">-</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 下載進度對話框 -->
+        <div id="downloadProgressModal" class="hidden fixed inset-0 bg-black bg-opacity-50 modal-overlay flex items-center justify-center z-50">
+            <div class="modal-content bg-white rounded-xl p-6 max-w-md w-full mx-4 border border-gray-200">
+                <div class="flex items-center mb-4">
+                    <div class="flex-shrink-0 w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mr-4">
+                        <i class="fas fa-download text-blue-600 text-xl"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold text-gray-900">檔案下載中</h3>
+                        <p class="text-sm text-gray-500">請稍候，正在準備您的檔案</p>
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <div class="flex justify-between mb-2">
+                        <span class="text-sm text-gray-700" id="downloadFileName">準備中...</span>
+                        <span class="text-sm text-blue-600" id="downloadProgress">0%</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2">
+                        <div id="downloadProgressBar" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                </div>
+                
+                <div class="flex justify-end space-x-3">
+                    <button id="cancelDownloadBtn" class="px-6 py-2.5 text-gray-700 bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50 font-medium transition-all duration-200">
+                        取消
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 任務刪除確認對話框 -->
+        <div id="deleteConfirmModal" class="hidden fixed inset-0 bg-black bg-opacity-50 modal-overlay flex items-center justify-center z-50">
+            <div class="modal-content bg-white rounded-xl p-6 max-w-md w-full mx-4 border border-gray-200">
+                <div class="flex items-center mb-4">
+                    <div class="flex-shrink-0 w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mr-4">
+                        <i class="fas fa-exclamation-triangle text-red-600 text-xl"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold text-gray-900">確認刪除</h3>
+                        <p class="text-sm text-gray-500">此操作無法復原</p>
+                    </div>
+                </div>
+                <p class="text-gray-600 mb-6 leading-relaxed">您確定要刪除這個轉換任務嗎？此操作將永久刪除所有相關檔案，包括原始音訊、字幕檔案和文字檔案。</p>
+                <div class="flex justify-end space-x-3">
+                    <button id="cancelDeleteBtn" class="px-6 py-2.5 text-gray-700 bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50 font-medium transition-all duration-200">
+                        取消
+                    </button>
+                    <button id="confirmDeleteBtn" class="px-6 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 font-medium transition-all duration-200">
+                        <i class="fas fa-trash mr-2"></i>確認刪除
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 下載檔案對話框 -->
+        <div id="downloadFilesModal" class="hidden fixed inset-0 bg-black bg-opacity-75 modal-overlay flex items-center justify-center z-50">
+            <div class="modal-content bg-white rounded-xl p-6 max-w-md w-full mx-4 border border-gray-200">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0 w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mr-4">
+                            <i class="fas fa-download text-blue-600 text-xl"></i>
+                        </div>
+                        <div>
+                            <h3 id="downloadModalTitle" class="text-lg font-bold text-gray-900">下載檔案</h3>
+                            <p class="text-sm text-gray-500">請選擇您要下載的檔案類型</p>
+                        </div>
+                    </div>
+                    <button id="closeDownloadModalBtn" class="text-gray-500 hover:text-gray-700 focus:outline-none">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                <div id="download-links-container" class="space-y-2">
+                    <!-- 下載連結將會動態生成於此 -->
+                </div>
+            </div>
+        </div>
+        
+        <footer class="text-center text-gray-500 text-sm py-6">
+            <p>Faster Whisper STT API &copy; 2025</p>
+        </footer>
+    </div>
+
+    <!-- 模塊化 JavaScript -->
+    <script type="module" src="/static/js/main.js"></script>
+</body>
+</html>

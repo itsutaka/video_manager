@@ -1,0 +1,40 @@
+/**
+ * main.css
+ * 基礎樣式和通用類
+ * 包含：CSS 變量、基礎字體、容器樣式、工具類
+ */
+
+/* 基礎進度條樣式 */
+.progress-bar {
+    transition: width 0.3s ease;
+}
+
+/* 載入動畫 */
+.loading {
+    animation: pulse 1.5s infinite;
+}
+
+/* 轉錄容器 */
+.transcript-container {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+/* 分段樣式 */
+.segment {
+    transition: all 0.3s ease;
+}
+
+.segment.active {
+    background-color: #f0f9ff;
+    border-left: 3px solid #3b82f6;
+}
+
+/* 說話者標籤 */
+.speaker-tag {
+    display: inline-block;
+    border-radius: 9999px;
+    padding: 0.25rem 0.75rem;
+    font-size: 0.75rem;
+    margin-right: 0.5rem;
+}
