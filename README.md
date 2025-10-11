@@ -1,4 +1,4 @@
-# vidoe_manoger
+# vidoe_manager
 
 這是一個基於 Faster Whisper 和 FastAPI 的企業級語音轉文字 (STT) 應用程式，提供 GPU 加速處理、完整的歷史紀錄管理、說話者辨識和現代化的 Web 界面。
 
