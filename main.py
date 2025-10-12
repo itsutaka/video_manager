@@ -508,6 +508,9 @@ async def transcribe_audio(
                 'file_path': str(audio_path),
                 'file_size': len(content)
             })
+
+            # 更新主任務的檔案大小
+            await db.update_task_status(task_id, 'processing', file_size=len(content))
             
         else:
             # 處理 YouTube URL
@@ -579,6 +582,8 @@ async def transcribe_audio(
                         'file_path': str(audio_path),
                         'file_size': file_size
                     })
+                    # 更新主任務的檔案大小
+                    await db.update_task_status(task_id, 'processing', file_size=file_size)
                 
             except Exception as e:
                 logger.error(f"YouTube 下載失敗: {e}")
@@ -728,9 +733,10 @@ async def transcribe_audio(
                 'file_path': str(srt_path),
                 'file_size': len(srt_content.encode('utf-8'))
             })
-            
-            # 更新任務狀態
-            await db.update_task_status(task_id, 'completed')
+
+            # 更新任務狀態，並寫入音訊時長
+            task_duration = getattr(info, 'duration', None)
+            await db.update_task_status(task_id, 'completed', duration=task_duration)
             
             # 準備回應
             if response_format == "verbose_json":
@@ -1666,4 +1672,4 @@ async def get_maintenance_reports(limit: int = 10):
 
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=8080, reload=True)
