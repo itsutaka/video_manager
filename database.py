@@ -40,7 +40,7 @@ class ConversionHistoryDB:
         # 如果有遷移管理器，優先使用遷移系統
         if MIGRATION_AVAILABLE:
             try:
-                migration_manager = await get_migration_manager()
+                migration_manager = get_migration_manager(self.db_path)
                 await migration_manager.initialize_migration_system()
                 logger.info("使用遷移系統初始化資料庫")
                 return
@@ -147,7 +147,7 @@ class ConversionHistoryDB:
             
             # 處理額外的更新欄位
             for key, value in kwargs.items():
-                if key in ['completed_at', 'duration', 'error_message', 'file_size']:
+                if key in ['completed_at', 'duration', 'error_message', 'file_size', 'mp4_file_size']:
                     update_fields.append(f"{key} = ?")
                     values.append(value)
             

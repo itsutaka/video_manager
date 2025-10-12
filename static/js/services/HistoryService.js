@@ -269,6 +269,7 @@ export class HistoryService {
             duration: task.duration ? formatDuration(task.duration) : '未知',
             videoDuration: task.video_duration ? formatDuration(task.video_duration) : null,
             fileSize: task.file_size ? formatFileSize(task.file_size) : '未知',
+            mp4FileSize: task.mp4_file_size ? formatFileSize(task.mp4_file_size) : null,
 
             // YouTube 資料
             videoTitle: task.video_title,

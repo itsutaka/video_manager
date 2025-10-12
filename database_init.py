@@ -199,6 +199,59 @@ class DatabaseSetup:
                         CREATE INDEX IF NOT EXISTS idx_tasks_status ON conversion_tasks (status);
                         CREATE INDEX IF NOT EXISTS idx_tasks_tags ON conversion_tasks (tags);
                     """
+                },
+                {
+                    "version": "1.0.4",
+                    "description": "新增 mp4_file_size 欄位到 conversion_tasks 表",
+                    "sql": "ALTER TABLE conversion_tasks ADD COLUMN mp4_file_size INTEGER;",
+                    "rollback": """
+                        CREATE TABLE conversion_tasks_temp (
+                            id TEXT PRIMARY KEY,
+                            name TEXT NOT NULL,
+                            source_type TEXT NOT NULL,
+                            source_info TEXT,
+                            model_used TEXT NOT NULL,
+                            language TEXT,
+                            status TEXT NOT NULL,
+                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                            completed_at TIMESTAMP,
+                            task_folder TEXT NOT NULL,
+                            file_size INTEGER,
+                            duration REAL,
+                            has_diarization BOOLEAN DEFAULT FALSE,
+                            error_message TEXT,
+                            tags TEXT,
+                            video_title TEXT,
+                            video_description TEXT,
+                            video_uploader TEXT,
+                            video_upload_date TEXT,
+                            video_duration INTEGER,
+                            video_thumbnail_url TEXT,
+                            video_view_count INTEGER
+                        );
+                        INSERT INTO conversion_tasks_temp (
+                            id, name, source_type, source_info, model_used, language, status,
+                            created_at, completed_at, task_folder, file_size, duration,
+                            has_diarization, error_message, tags, video_title, video_description,
+                            video_uploader, video_upload_date, video_duration, video_thumbnail_url,
+                            video_view_count
+                        )
+                        SELECT 
+                            id, name, source_type, source_info, model_used, language, status,
+                            created_at, completed_at, task_folder, file_size, duration,
+                            has_diarization, error_message, tags, video_title, video_description,
+                            video_uploader, video_upload_date, video_duration, video_thumbnail_url,
+                            video_view_count
+                        FROM conversion_tasks;
+                        DROP TABLE conversion_tasks;
+                        ALTER TABLE conversion_tasks_temp RENAME TO conversion_tasks;
+                        CREATE INDEX IF NOT EXISTS idx_tasks_created_at ON conversion_tasks (created_at);
+                        CREATE INDEX IF NOT EXISTS idx_tasks_status ON conversion_tasks (status);
+                        CREATE INDEX IF NOT EXISTS idx_tasks_tags ON conversion_tasks (tags);
+                        CREATE INDEX IF NOT EXISTS idx_video_title ON conversion_tasks (video_title);
+                        CREATE INDEX IF NOT EXISTS idx_video_uploader ON conversion_tasks (video_uploader);
+                        CREATE INDEX IF NOT EXISTS idx_source_type_created ON conversion_tasks (source_type, created_at);
+                    """
                 }
             ]
             

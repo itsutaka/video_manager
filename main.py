@@ -543,6 +543,8 @@ async def transcribe_audio(
                             'file_path': str(video_path),
                             'file_size': video_size
                         })
+                        # 更新主任務的 MP4 檔案大小
+                        await db.update_task_status(task_id, 'processing', mp4_file_size=video_size)
                 else:
                     # 僅下載音訊
                     audio_output_path = task_folder / "original.mp3"

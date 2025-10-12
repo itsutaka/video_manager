@@ -247,7 +247,8 @@ export class HistoryController {
                 <div class="task-meta">
                     <div class="meta-item"><i class="fas fa-calendar text-gray-400"></i><span>${task.createdAt}</span></div>
                     <div class="meta-item"><i class="fas fa-clock text-gray-400"></i><span>${task.duration}</span></div>
-                    <div class="meta-item"><i class="fas fa-hdd text-gray-400"></i><span>${task.fileSize}</span></div>
+                    <div class="meta-item"><i class="fas fa-file-audio text-gray-400"></i><span>${task.fileSize}</span></div>
+                    ${task.mp4FileSize ? `<div class="meta-item" title="影片檔案大小"><i class="fas fa-video text-gray-400"></i><span>${task.mp4FileSize}</span></div>` : ''}
                     ${task.hasDiarization ? '<div class="meta-item"><i class="fas fa-users text-blue-500"></i><span>說話者分離</span></div>' : ''}
                 </div>
                 <div class="task-actions">
