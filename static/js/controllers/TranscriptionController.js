@@ -380,6 +380,65 @@ export class TranscriptionController {
     }
 
     /**
+     * 添加單個即時段落 (用於 WebSocket 即時更新)
+     */
+    addSegmentRealtime(segmentData) {
+        if (!this.elements.segmentsList) return;
+
+        // 確保 segmentsList 容器可見
+        if (this.elements.segmentsContainer) {
+            this.elements.segmentsContainer.classList.remove('hidden');
+        }
+
+        const segment = {
+            id: segmentData.id !== undefined ? segmentData.id : this.segments.length,
+            text: segmentData.text,
+            start: segmentData.start,
+            end: segmentData.end,
+            speaker: segmentData.speaker || null
+        };
+
+        // 添加到 segments 陣列
+        this.segments.push(segment);
+
+        // 創建段落元素
+        const segmentDiv = document.createElement('div');
+        segmentDiv.className = 'p-4 bg-gray-50 rounded-lg border border-gray-200 animate-fade-in';
+        segmentDiv.setAttribute('data-segment-id', segment.id);
+
+        let speakerBadge = '';
+        if (segment.speaker) {
+            const speakerClass = this.getSpeakerColorClass(segment.speaker);
+            speakerBadge = `<span class="inline-block px-2 py-1 text-xs font-semibold rounded ${speakerClass} mr-2">${segment.speaker}</span>`;
+        }
+
+        const timeRange = transcriptionService.formatTimeRange(segment.start, segment.end);
+
+        segmentDiv.innerHTML = `
+            <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center">
+                    ${speakerBadge}
+                    <span class="text-sm text-gray-500">${timeRange}</span>
+                </div>
+                <span class="text-xs text-gray-400">#${segment.id + 1}</span>
+            </div>
+            <p class="text-gray-800">${segment.text}</p>
+        `;
+
+        // 添加到列表
+        this.elements.segmentsList.appendChild(segmentDiv);
+
+        // 更新完整文本
+        if (this.elements.transcriptText) {
+            const currentText = this.elements.transcriptText.textContent;
+            this.elements.transcriptText.textContent = currentText + (currentText ? ' ' : '') + segment.text;
+        }
+
+        // 自動滾動到最新段落
+        segmentDiv.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }
+
+    /**
      * 獲取說話者顏色類別
      */
     getSpeakerColorClass(speaker) {

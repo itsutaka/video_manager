@@ -136,6 +136,13 @@ class App {
      */
     handleSegmentUpdate(data) {
         console.log('收到新分段:', data);
+
+        // 調用 TranscriptionController 的即時顯示方法
+        if (transcriptionController && transcriptionController.addSegmentRealtime) {
+            transcriptionController.addSegmentRealtime(data);
+        }
+
+        // 發送事件給其他監聽器
         this.eventBus.emit('segment:new', data);
     }
 
